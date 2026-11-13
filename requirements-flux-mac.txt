@@ -1,0 +1,2 @@
+# Isolated runtime: MFLUX requires Pillow 13; the FastAPI app keeps Pillow 12.
+mflux==0.24.0

@@ -1,0 +1,79 @@
+name: stadium-backend
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    init: true
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Allow scripts/run.sh to select a server-side provider at startup.
+      GENERATION_PROVIDER: ${GENERATION_PROVIDER:-mock}
+      # Keep the database and every archive file on the persistent volume,
+      # regardless of the native-development DATA_DIR in .env.
+      DATA_DIR: /app/data
+      # Docker Desktop uses CPU; native Mac MPS is launched by scripts/run.sh mps.
+      LOCAL_IMAGE_ENGINE: ${LOCAL_IMAGE_ENGINE:-flux3}
+      LOCAL_IMAGE_DEVICE: cpu
+      LOCAL_IMAGE_MODEL_CACHE: /app/models/huggingface
+      LOCAL_IMAGE_LOCAL_FILES_ONLY: "true"
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      LOCAL_IMAGE_WIDTH: ${DOCKER_LOCAL_IMAGE_WIDTH:-768}
+      LOCAL_IMAGE_HEIGHT: ${DOCKER_LOCAL_IMAGE_HEIGHT:-512}
+      LOCAL_IMAGE_STEPS: ${DOCKER_LOCAL_IMAGE_STEPS:-16}
+      GENERATION_TIMEOUT_SECONDS: ${DEV_GENERATION_TIMEOUT_SECONDS:-1800}
+      MAX_GENERATION_ATTEMPTS: "1"
+    ports:
+      # 8001 avoids the native development server already using 8000.
+      - "127.0.0.1:${BACKEND_PORT:-8001}:8000"
+    volumes:
+      - stadium-data:/app/data
+      - ./models/flux3-hub:/app/models/huggingface:ro
+    # CPU inference may take several minutes.
+    stop_grace_period: ${LOCAL_BACKEND_STOP_GRACE_PERIOD:-35m}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json, urllib.request; r=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)); raise SystemExit(0 if r['status'] == 'ok' else 1)"
+      interval: 15s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    init: true
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+volumes:
+  stadium-data:

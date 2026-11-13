@@ -1,0 +1,92 @@
+name: stadium-server
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.cuda
+      args:
+        PYTORCH_CUDA_IMAGE: ${PYTORCH_CUDA_IMAGE:-pytorch/pytorch:2.14.1-cuda12.6-cudnn9-runtime}
+    init: true
+    restart: unless-stopped
+    env_file:
+      - path: .env.server
+        required: true
+    environment:
+      DATA_DIR: /app/data
+      GENERATION_PROVIDER: local
+      LOCAL_IMAGE_ENGINE: flux3
+      LOCAL_IMAGE_DEVICE: cuda
+      LOCAL_IMAGE_MODEL: ${LOCAL_IMAGE_MODEL:-black-forest-labs/flux-3-image-klein}
+      LOCAL_IMAGE_MODEL_CACHE: /app/models/huggingface
+      LOCAL_IMAGE_LOCAL_FILES_ONLY: "true"
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      LOCAL_IMAGE_WIDTH: ${LOCAL_IMAGE_WIDTH:-1024}
+      LOCAL_IMAGE_HEIGHT: ${LOCAL_IMAGE_HEIGHT:-576}
+      LOCAL_IMAGE_STEPS: ${LOCAL_IMAGE_STEPS:-16}
+      LOCAL_IMAGE_GUIDANCE: ${LOCAL_IMAGE_GUIDANCE:-6.0}
+      GENERATION_TIMEOUT_SECONDS: ${GENERATION_TIMEOUT_SECONDS:-600}
+      MAX_PENDING_JOBS: ${MAX_PENDING_JOBS:-4}
+      MAX_GENERATION_ATTEMPTS: "1"
+      MIN_FREE_DISK_MB: ${MIN_FREE_DISK_MB:-2048}
+      ALLOW_FREE_TEXT: ${ALLOW_FREE_TEXT:-false}
+    expose:
+      - "8000"
+    volumes:
+      - stadium-data:/app/data
+      - type: bind
+        source: ${MODEL_CACHE_DIR:-./models/flux3-hub}
+        target: /app/models/huggingface
+        read_only: true
+        bind:
+          create_host_path: false
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    stop_grace_period: ${BACKEND_STOP_GRACE_PERIOD:-20m}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json, urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=10)); raise SystemExit(0 if d['status'] == 'ok' and d['provider_configured'] else 1)"
+      interval: 20s
+      timeout: 15s
+      start_period: 60s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    init: true
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_BIND_IP:-0.0.0.0}:${FRONTEND_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
+      interval: 20s
+      timeout: 5s
+      start_period: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+volumes:
+  stadium-data:

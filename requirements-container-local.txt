@@ -1,0 +1,5 @@
+# PyTorch CPU wheels are installed from the official CPU index in Dockerfile.local.
+diffusers==0.43.0
+transformers
+accelerate
+safetensors

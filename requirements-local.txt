@@ -1,0 +1,8 @@
+# Optional native-Mac stack for local SDXL generation. Keep this separate from
+# the lightweight Docker/mock/cloud requirements.
+torch
+torchvision
+diffusers
+transformers
+accelerate
+safetensors

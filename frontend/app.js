@@ -1,0 +1,432 @@
+const app = document.querySelector('#app');
+const announcer = document.querySelector('#announcer');
+const STORAGE_KEY = 'qma-stadium-session-v1';
+const ICONS = {
+  football: '<circle cx="12" cy="12" r="8.5"/><path d="m12 7 3 2.2-1.15 3.55h-3.7L9 9.2 12 7Zm-3 2.2-2.3-.2m8.3.2 2.4-.2m-6 4.55-.9 3m3.6-3-.9 3m-6.5-2-2.2 1m14.4-1 2.2 1"/>',
+  capacity: '<ellipse cx="12" cy="13" rx="9" ry="5.5"/><ellipse cx="12" cy="13" rx="5.8" ry="2.8"/><path d="M3 13v3m18-3v3M6 16v2m12-2v2"/>',
+  setting: '<path d="M4 19h16M5 19l7-14 7 14M8.5 12h7M7 16h10"/>',
+  theme: '<path d="M4 18c3-8 13-12 16-9-1 4-6 11-13 10m2-2 7-6"/><circle cx="17.5" cy="6.5" r="1.5"/>',
+  style: '<path d="M5 19h14M7 19V9l5-4 5 4v10M9.5 19v-5h5v5M5 9h14"/>',
+  shape: '<ellipse cx="12" cy="12" rx="9" ry="5.5"/><ellipse cx="12" cy="12" rx="5.8" ry="2.8"/>',
+  roof: '<path d="M3 16c2-8 14-11 18 0M4 16h16M7 16v2m5-2v2m5-2v2"/>',
+  materials: '<path d="M4 8 12 4l8 4-8 4-8-4Zm0 4 8 4 8-4m-16 4 8 4 8-4"/>',
+  palette: '<circle cx="12" cy="12" r="9"/><path d="M12 3v9h9M6 6l6 6m-8 0h8m0 0 4 7"/>',
+  experience: '<path d="M3 18h18M5 17v-5l7-5 7 5v5M9 17v-4h6v4m-3-10V4"/>',
+  innovation: '<path d="M12 3v4m0 10v4M3 12h4m10 0h4M5.6 5.6l2.8 2.8m7.2 7.2 2.8 2.8m0-12.8-2.8 2.8m-7.2 7.2-2.8 2.8"/><circle cx="12" cy="12" r="3.5"/>',
+  technologies: '<path d="M12 3 4.5 7v6c0 4 3.2 6.6 7.5 8 4.3-1.4 7.5-4 7.5-8V7L12 3Zm-3.5 9 2.3 2.3 4.8-5"/>',
+  environment: '<path d="M19.5 4.5c-8 .2-14 2.7-14 8.2a5.3 5.3 0 0 0 5.2 5.3c5.8 0 8.1-6.7 8.8-13.5ZM4 21c2.2-5.4 5.8-8.9 11.4-12"/>',
+  legacy: '<path d="M4 19h16M6 19V8l6-4 6 4v11M9 19v-6h6v6M4 9h16"/>',
+  signature: '<path d="M4 17.5 16.5 5l2.5 2.5L6.5 20H4v-2.5ZM13.5 8l2.5 2.5M4 22h16"/>',
+  fallback: '<circle cx="12" cy="12" r="8"/><path d="m8 12 2.5 2.5L16 9"/>',
+};
+
+const state = {
+  phase: 'boot', health: null, questionnaire: null, session: null,
+  revision: 0, answers: {}, questionIndex: 0, review: null, job: null,
+  notice: '', error: '', requestPending: false, pollTimer: null,
+};
+
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+async function request(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: { ...(options.body ? {'Content-Type':'application/json'} : {}), ...options.headers },
+  });
+  const type = response.headers.get('content-type') || '';
+  const body = type.includes('application/json') ? await response.json() : null;
+  if (!response.ok) {
+    let message = body?.detail;
+    if (message && typeof message === 'object') message = message.message || JSON.stringify(message);
+    throw new Error(typeof message === 'string' ? message : `Request failed (${response.status}). Please try again.`);
+  }
+  return body;
+}
+
+function icon(key) {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[key] || ICONS.fallback}</svg>`;
+}
+
+function art() {
+  return `<svg viewBox="0 0 640 600" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Illustration of a sculptural stadium in a green landscape">
+    <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#dce7e0"/><stop offset="1" stop-color="#e9e4d8"/></linearGradient><linearGradient id="bowl" x2=".2" y2="1"><stop stop-color="#e4d8c1"/><stop offset="1" stop-color="#aa9778"/></linearGradient><filter id="shadow"><feGaussianBlur stdDeviation="17"/></filter></defs>
+    <rect width="640" height="600" fill="url(#sky)"/>
+    <circle cx="510" cy="116" r="46" fill="#ead4a9" opacity=".75"/>
+    <path d="M0 388Q150 287 300 364t340-12v248H0Z" fill="#a7bbaa"/><path d="M0 455q154-100 327-13t313-5v163H0Z" fill="#879d8a"/>
+    <ellipse cx="331" cy="465" rx="226" ry="39" fill="#385b4b" opacity=".22" filter="url(#shadow)"/>
+    <path d="M132 337Q152 228 332 205q173 19 190 132v103q-25 110-192 114-169-3-198-117Z" fill="url(#bowl)" stroke="#657b6b" stroke-width="4"/>
+    <ellipse cx="331" cy="338" rx="199" ry="103" fill="#d8c8a9" stroke="#536e5d" stroke-width="5"/>
+    <ellipse cx="331" cy="338" rx="151" ry="72" fill="#f0e9d9" stroke="#9a8d76" stroke-width="2"/>
+    <ellipse cx="331" cy="343" rx="108" ry="47" fill="#789376"/>
+    <path d="M231 343h200M331 296v94" stroke="#f7f2e7" stroke-width="2"/><circle cx="331" cy="343" r="17" fill="none" stroke="#f7f2e7" stroke-width="2"/>
+    <path d="M132 337q26-106 200-132 169 19 190 132" fill="none" stroke="#fff9ec" stroke-width="12" stroke-linecap="round"/>
+    <path d="M154 314q-20-75 67-105M510 314q20-75-67-105" fill="none" stroke="#b88b52" stroke-width="4"/>
+    <path d="M101 483q135 55 260 39t199-45" fill="none" stroke="#e5dfcf" stroke-width="12" stroke-linecap="round"/>
+    <path d="M122 503q22 20 42 0m-18 13q17 17 36 2m352-28q-16 17-32 5" stroke="#e7e3d9" stroke-width="4" fill="none"/>
+    <g fill="#4d7458"><circle cx="97" cy="405" r="12"/><circle cx="78" cy="409" r="9"/><circle cx="574" cy="415" r="14"/><circle cx="596" cy="421" r="10"/></g>
+  </svg><div class="hero-caption"><span>Architecture for everyone</span><span>01 / 15</span></div>`;
+}
+
+function shell(content) {
+  const mock = state.health?.is_mock ?? state.health?.provider === 'mock';
+  return `<header class="topbar">
+    <div class="brand"><svg class="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M4 26c0-9 7-16 16-16s16 7 16 16v5H4v-5Z" fill="currentColor"/><ellipse cx="20" cy="25" rx="10" ry="5" stroke="#f5f3ee" stroke-width="2"/><path d="M10 24c2-5 18-5 20 0M20 20v10" stroke="#f5f3ee" stroke-width="1.5"/></svg><span>Future Stadium<small>Design your own</small></span></div>
+    <div class="top-meta"><span class="museum-label">Qatar Olympic &amp; Sports Museum</span>${state.session ? '<span>Touchscreen experience</span>' : '<span>Sports &amp; Architecture</span>'}</div>
+  </header><main>${state.notice ? `<div class="toast-ok" role="status" style="margin-bottom:18px">${escapeHtml(state.notice)}</div>` : ''}${content}</main>
+  <footer class="footer">A stadium concept made from your imagination</footer>
+  <div class="connection-banner" role="alert" ${state.error ? '' : 'hidden'}>${escapeHtml(state.error)}</div>`;
+}
+
+function renderBoot() {
+  return shell(`<section class="loading-view"><div class="loader-orbit"></div><h2>Preparing your design studio</h2><p class="muted">Connecting to the stadium archive…</p></section>`);
+}
+
+function renderHome() {
+  const provider = state.health?.provider || 'unknown';
+  const online = state.health?.status === 'ok';
+  return shell(`<section class="home-grid">
+    <div class="home-copy"><p class="eyebrow">Sports &amp; Architecture · QMA</p>
+      <h1>Imagine a stadium<br>that is <span>only yours.</span></h1>
+      <p class="lead">Choose the setting, shape and details. Then reveal a stadium of tomorrow, designed around your ideas.</p>
+      <button class="button" data-action="start" ${!online || state.requestPending ? 'disabled' : ''}>Start designing <span class="button-arrow" aria-hidden="true">→</span></button>
+      <div class="home-details"><span><i class="dot"></i> 15 design choices</span><span><i class="dot"></i> About 3–5 minutes</span><span><i class="dot"></i> ${online ? 'Ready to begin' : 'Connecting…'}</span></div>
+    </div><div class="hero-art">${art()}</div>
+  </section>${state.health?.status === 'low_storage' ? '<div class="mock-banner" style="margin-top:16px"><span class="mock-dot"></span>Station storage is low. Please ask a staff member for help.</div>' : ''}
+  <span class="sr-only">Image generation mode: ${escapeHtml(provider)}${state.health?.is_mock ? ', test schematic' : ''}</span>`);
+}
+
+function valueFor(question) {
+  return state.answers[question.id];
+}
+
+function canContinue(question) {
+  const value = valueFor(question);
+  if (question.type === 'signature') return value?.mode === 'surprise' || (value?.mode === 'text' && value.text?.trim());
+  if (question.type === 'multiple') return Array.isArray(value) && value.length >= question.min_selections;
+  return typeof value === 'string' && value.length > 0;
+}
+
+function renderProgress(index) {
+  const total = state.questionnaire.questions.length;
+  return `<div class="progress-wrap"><div class="progress-labels"><span><strong>Design journey</strong></span><span>Question ${index + 1} of ${total}</span></div><div class="progress-track" role="progressbar" aria-label="Question progress" aria-valuemin="1" aria-valuemax="${total}" aria-valuenow="${index + 1}"><div class="progress-fill" style="width:${((index + 1) / total) * 100}%"></div></div></div>`;
+}
+
+function optionCard(question, option, selected, multiple, disabled = false) {
+  return `<button type="button" class="option-card ${multiple ? 'multiple' : ''} ${selected ? 'selected' : ''}" role="${multiple ? 'checkbox' : 'radio'}" aria-checked="${selected}" data-action="choose" data-question="${escapeHtml(question.id)}" data-option="${escapeHtml(option.id)}" ${disabled ? 'disabled' : ''}>
+    <span class="option-icon">${icon(question.id)}</span><span class="option-copy">${escapeHtml(option.label)}</span><span class="option-check" aria-hidden="true">${selected ? '✓' : ''}</span>
+  </button>`;
+}
+
+function renderQuestion() {
+  const question = state.questionnaire.questions[state.questionIndex];
+  if (!question) { state.phase = 'review'; return renderReview(); }
+  const isMultiple = question.type === 'multiple';
+  let body;
+  if (question.type === 'signature') {
+    const value = valueFor(question);
+    const surprise = value?.mode === 'surprise';
+    body = `<div class="signature-form" role="radiogroup" aria-label="Choose your signature feature option">
+      ${optionCard(question, {id:'surprise',label:'Surprise me — invent a feature that fits my design'}, surprise, false)}
+    </div>${state.questionnaire.free_text_enabled ? `<label class="signature-form" style="margin-top:14px" for="signature-input"><span class="muted" style="font-size:13px;font-weight:600">Or describe your own feature</span><input class="signature-input" id="signature-input" maxlength="140" value="${escapeHtml(value?.mode === 'text' ? value.text : '')}" placeholder="A spiralling public walkway…" autocomplete="off"><span class="signature-meter"><span>Keep it short and suitable for everyone</span><span id="signature-count">${value?.text?.length || 0} / 140</span></span></label>` : '<p class="surprise-note">Custom text is being prepared for a future version. Choose “Surprise me” for this prototype.</p>'}</div>`;
+  } else {
+    const selected = valueFor(question);
+    body = `<div class="option-grid" role="${isMultiple ? 'group' : 'radiogroup'}" aria-label="${escapeHtml(question.title)}">${question.options.map(option => {
+      const active = isMultiple ? (selected || []).includes(option.id) : selected === option.id;
+      const blocked = isMultiple && !active && (selected || []).length >= question.max_selections;
+      return optionCard(question, option, active, isMultiple, blocked);
+    }).join('')}</div>${isMultiple ? `<div class="selection-limit"><span class="selected-count">${(selected || []).length}</span> / ${question.max_selections} selected · Choose up to ${question.max_selections}</div>` : ''}`;
+  }
+  const title = question.type === 'signature' ? 'What would make your stadium unforgettable?' : question.title;
+  const hint = isMultiple ? `Choose up to ${question.max_selections}` : question.type === 'signature' ? 'Choose a surprise feature' : 'Choose one';
+  const nextLabel = state.questionIndex === state.questionnaire.questions.length - 1 ? 'Review my choices' : 'Continue';
+  return shell(`<section class="step-shell">${renderProgress(state.questionIndex)}
+    <div class="question-head"><span class="question-count">${String(question.number).padStart(2,'0')} <span aria-hidden="true">/</span> ${state.questionnaire.questions.length}</span><h2>${escapeHtml(title)}</h2><p class="selection-hint">${hint}</p></div>
+    ${body}
+    <div class="survey-nav"><button type="button" class="button ghost" data-action="back">← <span>${state.questionIndex === 0 ? 'Exit' : 'Back'}</span></button><div class="survey-nav-right"><button type="button" class="button secondary small" data-action="review">Review</button><button type="button" class="button" data-action="continue" ${canContinue(question) ? '' : 'disabled'}>${nextLabel}<span class="button-arrow" aria-hidden="true">→</span></button></div></div>
+  </section>`);
+}
+
+function displayAnswer(question, answer) {
+  if (question.id === 'signature') return answer?.mode === 'text' ? answer.text : 'Surprise me';
+  const labels = Object.fromEntries(question.options.map(option => [option.id, option.label]));
+  if (Array.isArray(answer)) return answer.map(id => labels[id] || id).join(' · ');
+  return labels[answer] || answer || '—';
+}
+
+function renderReview() {
+  const questions = state.questionnaire.questions;
+  const entries = questions.filter(q => state.answers[q.id] !== undefined).map(q => `<div class="review-row"><span class="review-row-label">${String(q.number).padStart(2,'0')} · ${escapeHtml(q.title)}</span><span class="review-row-value">${escapeHtml(displayAnswer(q,state.answers[q.id]))}</span></div>`).join('');
+  const notes = state.review?.notes_to_confirm || [];
+  const warning = state.health?.is_mock ? `<div class="mock-banner" style="margin-top:16px"><span class="mock-dot"></span><span>This demo uses a labelled test schematic. Your choices and design story will be saved with it.</span></div>` : '';
+  return shell(`<section class="step-shell">${renderProgress(state.questionnaire.questions.length - 1)}
+    <div class="review-card"><div class="review-intro"><div><p class="eyebrow">One last look</p><h2>Your stadium, your choices.</h2><p class="muted" style="margin:0;font-size:14px">Check your selections before we create the final image.</p></div><button type="button" class="button secondary small" data-action="edit">Edit</button></div>
+    <div class="review-answers">${entries}</div>
+    ${notes.length ? `<div class="review-note"><h3>A quick design note</h3>${notes.map(note => `<p>${escapeHtml(note.message)}</p>`).join('')}<p style="margin-top:10px;font-weight:600">These notes keep your choices intact and guide how the concept is shown. Continue to confirm.</p></div>` : ''}</div>
+    ${warning}<div class="survey-nav"><button type="button" class="button ghost" data-action="edit">← Edit choices</button><div class="survey-nav-right"><button type="button" class="button" data-action="generate" ${state.requestPending ? 'disabled' : ''}>Create my stadium <span class="button-arrow" aria-hidden="true">→</span></button></div></div>
+  </section>`);
+}
+
+function renderGenerating() {
+  const status = state.job?.status;
+  let current = status === 'saving' ? 'Saving your design' : status === 'queued' ? 'Joining the design queue' : 'Creating your stadium';
+  let detail = state.health?.is_mock ? 'Drawing a clearly labelled development schematic.' : 'The image is taking shape. Your answers are safely saved.';
+  return shell(`<section class="loading-view" aria-live="polite"><div class="loader-orbit"></div><p class="eyebrow">Your stadium is taking shape</p><h2>${escapeHtml(current)}</h2><p class="muted">${escapeHtml(detail)}</p><div class="loading-progress"><span></span></div><div class="loading-steps"><span class="active">01 &nbsp; Building the concept</span><span class="${status === 'saving' ? 'active' : ''}">02 &nbsp; Saving your design</span><span>03 &nbsp; Ready to reveal</span></div><p class="muted" style="margin:24px 0 0;font-size:12px">Please keep this screen open.</p></section>`);
+}
+
+function renderError() {
+  const error = state.job?.error;
+  return shell(`<section class="loading-view"><div style="font-size:42px;color:#a64436;margin-bottom:14px" aria-hidden="true">!</div><p class="eyebrow" style="color:#a64436">A small pause</p><h2>We couldn't finish this image</h2><p class="muted">${escapeHtml(error?.message || 'Your answers are saved. Please try again or ask a staff member for help.')}</p><div class="survey-nav" style="text-align:left"><button class="button secondary" data-action="edit">Review choices</button><button class="button" data-action="retry">Try again</button></div></section>`);
+}
+
+function renderResult() {
+  const result = state.job.result;
+  const design = result.design;
+  const mock = state.job.is_mock;
+  const questions = state.questionnaire.questions;
+  const choice = key => displayAnswer(questions.find(q=>q.id===key),result.answers[key]);
+  const facts = [['Theme & style', `${choice('theme')} · ${choice('style')}`], ['Signature feature', design.signature], ['Innovation', choice('innovation')], ['Technology', choice('technologies')], ['Future legacy', choice('legacy')]];
+  return shell(`<section class="reveal-grid">
+    <figure class="result-art"><img src="${escapeHtml(result.image_url)}" alt="${mock ? 'Labelled test schematic for' : 'AI generated concept of'} ${escapeHtml(design.title)}"/><figcaption><span>${mock ? 'Development test schematic' : 'AI concept visualisation'}</span><span>${result.image.width} × ${result.image.height}</span></figcaption></figure>
+    <div class="result-copy"><p class="eyebrow">Your stadium is ready</p><h1>${escapeHtml(design.title)}</h1><div class="capacity-chip">◎ &nbsp; ${escapeHtml(design.capacity)} spectators</div>
+      ${mock ? '<div class="mock-banner" style="margin:0 0 17px"><span class="mock-dot"></span>Test schematic — not an AI generated stadium image.</div>' : ''}
+      <p class="story">${escapeHtml(design.summary)}</p><div class="result-facts">${facts.map(([label,value])=>`<div><div class="fact-label">${escapeHtml(label)}</div><div class="fact-value">${escapeHtml(value)}</div></div>`).join('')}</div>
+      <div class="result-actions"><button class="button" data-action="finish">Finish experience <span class="button-arrow" aria-hidden="true">→</span></button><a class="button secondary" href="${escapeHtml(result.image_url)}" download="${escapeHtml(design.title.toLowerCase().replace(/[^a-z0-9]+/g,'-'))}.png">Save image ↓</a></div>
+      <p class="reference-line">Saved to the museum archive · <strong>${escapeHtml(result.archive_reference)}</strong></p>
+    </div>
+  </section>`);
+}
+
+function render() {
+  const views = {boot: renderBoot, home: renderHome, question: renderQuestion, review: renderReview,
+    generating: renderGenerating, error: renderError, result: renderResult};
+  app.innerHTML = (views[state.phase] || renderHome)();
+  document.body.dataset.phase = state.phase;
+}
+
+function setError(error) {
+  state.error = error instanceof Error ? error.message : String(error);
+  render();
+  window.setTimeout(() => { state.error = ''; render(); }, 6500);
+}
+
+function saveLocal() {
+  if (!state.session) return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({id:state.session.id, phase:state.phase, questionIndex:state.questionIndex}));
+}
+
+async function beginSession() {
+  state.requestPending = true; state.error = ''; render();
+  try {
+    state.session = await request('/api/v1/sessions', {method:'POST', body:JSON.stringify({language:'en'})});
+    state.answers = {}; state.revision = state.session.revision; state.questionIndex = 0;
+    state.notice = ''; state.phase = 'question'; saveLocal(); render();
+    focusQuestion();
+  } catch (error) { state.phase = 'home'; setError(error); }
+  finally {
+    state.requestPending = false;
+    if (state.phase === 'home') render();
+  }
+}
+
+function focusQuestion() {
+  requestAnimationFrame(() => app.querySelector('.question-head h2')?.focus?.());
+}
+
+async function persistAnswer(question, value) {
+  if (state.requestPending) return false;
+  state.requestPending = true;
+  try {
+    const updated = await request(`/api/v1/sessions/${state.session.id}/answers`, {
+      method:'PATCH', body:JSON.stringify({revision:state.revision, answers:{[question.id]:value}}),
+    });
+    state.answers = updated.answers; state.revision = updated.revision; saveLocal(); return true;
+  } catch (error) { setError(error); return false; }
+  finally { state.requestPending = false; }
+}
+
+async function goReview() {
+  state.requestPending = true; state.error = ''; render();
+  try {
+    state.review = await request(`/api/v1/sessions/${state.session.id}/review`);
+    state.phase = 'review'; saveLocal(); render();
+  } catch (error) { state.phase = 'question'; setError(error); }
+  finally {
+    state.requestPending = false;
+    if (state.phase === 'review') render();
+  }
+}
+
+function confirmedNotes(review) {
+  const notes = review.notes_to_confirm || [];
+  if (!notes.length) return [];
+  const list = notes.map(n => `• ${n.message}`).join('\n');
+  return window.confirm(`A design note helps us show your choices clearly:\n\n${list}\n\nContinue with these notes while keeping your selections?`)
+    ? notes.map(n=>n.code) : null;
+}
+
+async function startGeneration() {
+  if (state.requestPending) return;
+  state.requestPending = true; state.error = ''; render();
+  try {
+    state.review = await request(`/api/v1/sessions/${state.session.id}/review`);
+    const acceptedNotes = confirmedNotes(state.review);
+    if (acceptedNotes === null) { state.requestPending = false; state.phase='review'; render(); return; }
+    const key = `qma-stadium-request-${state.session.id}`;
+    let requestId = localStorage.getItem(key);
+    if (!requestId) { requestId = crypto.randomUUID(); localStorage.setItem(key, requestId); }
+    const job = await request(`/api/v1/sessions/${state.session.id}/generations`, {
+      method:'POST', body:JSON.stringify({request_id:requestId, revision:state.revision, accepted_notes:acceptedNotes}),
+    });
+    state.job = job; localStorage.setItem(`qma-stadium-job-${state.session.id}`,job.id);
+    state.phase = job.status === 'completed' ? 'result' : ['failed','interrupted'].includes(job.status) ? 'error' : 'generating'; saveLocal(); render();
+    if (state.phase === 'generating') pollJob(job.id);
+  } catch (error) { state.phase='review'; setError(error); }
+  finally {
+    state.requestPending = false;
+    if (state.phase === 'review') render();
+  }
+}
+
+function pollJob(jobId) {
+  clearTimeout(state.pollTimer);
+  const tick = async () => {
+    try {
+      const job = await request(`/api/v1/generations/${jobId}`);
+      state.job = job;
+      if (job.status === 'completed') state.phase = 'result';
+      else if (['failed','interrupted'].includes(job.status)) state.phase = 'error';
+      else { render(); state.pollTimer=window.setTimeout(tick,1300); return; }
+      saveLocal(); render();
+      announcer.textContent = state.phase === 'result' ? 'Your stadium design is ready.' : 'Image generation paused.';
+    } catch (error) {
+      state.error = error.message; render(); state.pollTimer=window.setTimeout(tick,2500);
+    }
+  };
+  state.pollTimer = window.setTimeout(tick,800);
+}
+
+async function retryGeneration() {
+  const key = `qma-stadium-request-${state.session.id}`;
+  localStorage.removeItem(key);
+  state.phase = 'review'; state.error = ''; render();
+  await startGeneration();
+}
+
+async function finishExperience() {
+  state.requestPending = true; render();
+  try {
+    const result = await request(`/api/v1/sessions/${state.session.id}/finish`, {method:'POST'});
+    clearTimeout(state.pollTimer);
+    const reference = result.archive_reference;
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(`qma-stadium-job-${state.session.id}`);
+    localStorage.removeItem(`qma-stadium-request-${state.session.id}`);
+    state.session=null; state.answers={}; state.job=null; state.review=null; state.revision=0;
+    state.questionIndex=0; state.notice=`Your stadium has been saved. Archive reference: ${reference}`;
+    state.phase='home'; render();
+  } catch (error) { setError(error); }
+  finally { state.requestPending = false; }
+}
+
+async function resume() {
+  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+  if (!saved?.id) return;
+  try {
+    const session = await request(`/api/v1/sessions/${saved.id}`);
+    state.session=session; state.answers=session.answers; state.revision=session.revision;
+    state.questionIndex=Math.min(Number(saved.questionIndex)||0,state.questionnaire.questions.length-1);
+    const active = session.generations.find(job=>['queued','generating','saving'].includes(job.status));
+    const latest = session.generations[0];
+    if (active) { state.job=active; state.phase='generating'; pollJob(active.id); }
+    else if (latest?.status === 'completed') { state.job=latest; state.phase='result'; }
+    else if (latest && ['failed','interrupted'].includes(latest.status)) { state.job=latest; state.phase='error'; }
+    else if (saved.phase === 'review') { state.phase='review'; }
+    else { state.phase='question'; }
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+    state.phase='home'; state.notice='Your previous session is no longer available. You can start a new design.';
+  }
+}
+
+app.addEventListener('click', async event => {
+  const button = event.target.closest('[data-action]');
+  if (!button) return;
+  const action = button.dataset.action;
+  if (action === 'start') return beginSession();
+  if (action === 'choose') {
+    const question = state.questionnaire.questions.find(q=>q.id===button.dataset.question);
+    if (!question) return;
+    const id=button.dataset.option;
+    if (question.type === 'multiple') {
+      const selected=new Set(state.answers[question.id] || []);
+      if (selected.has(id)) selected.delete(id);
+      else if (selected.size < question.max_selections) selected.add(id);
+      state.answers[question.id]=[...selected];
+    } else {
+      state.answers[question.id]= question.id==='signature' ? {mode:'surprise'} : id;
+    }
+    render();
+    const focusTarget=[...app.querySelectorAll('[data-action="choose"]')].find(el=>el.dataset.question===question.id&&el.dataset.option===id);
+    focusTarget?.focus();
+    return;
+  }
+  if (action === 'continue') {
+    const question=state.questionnaire.questions[state.questionIndex];
+    if (!canContinue(question)) return;
+    const value=state.answers[question.id];
+    if (!await persistAnswer(question,value)) return;
+    if (state.questionIndex < state.questionnaire.questions.length-1) {
+      state.questionIndex++; saveLocal(); render(); focusQuestion();
+    } else await goReview();
+    return;
+  }
+  if (action === 'back') {
+    if (state.questionIndex === 0) {
+      if (window.confirm('Leave this design? Your saved answers will be available if you return on this device.')) {
+        state.phase='home'; render();
+      }
+    } else {
+      state.questionIndex--; saveLocal(); render(); focusQuestion();
+    }
+    return;
+  }
+  if (action === 'review') return goReview();
+  if (action === 'edit') {
+    state.phase='question'; state.questionIndex=0; saveLocal(); render(); return;
+  }
+  if (action === 'generate') return startGeneration();
+  if (action === 'retry') return retryGeneration();
+  if (action === 'finish') return finishExperience();
+});
+
+app.addEventListener('input', event => {
+  if (event.target.id !== 'signature-input') return;
+  const text=event.target.value.slice(0,140);
+  event.target.value=text;
+  state.answers.signature={mode:'text',text};
+  const count=app.querySelector('#signature-count');
+  if (count) count.textContent=`${text.length} / 140`;
+  const next=app.querySelector('[data-action="continue"]');
+  if (next) next.disabled=!text.trim();
+});
+
+window.addEventListener('online', async () => {
+  try { state.health=await request('/health'); state.error=''; render(); } catch { /* Banner will be set by the next action. */ }
+});
+
+async function boot() {
+  render();
+  try {
+    [state.health,state.questionnaire]=await Promise.all([request('/health'),request('/api/v1/questionnaire')]);
+    await resume();
+    render();
+    if (!state.session) state.phase='home';
+    render();
+  } catch (error) {
+    state.phase='home'; state.error=`The design service is not ready. ${error.message}`; render();
+  }
+}
+
+boot();

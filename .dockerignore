@@ -1,0 +1,14 @@
+*
+!Dockerfile
+!Dockerfile.local
+!Dockerfile.cuda
+!requirements.lock.txt
+!requirements-container-local.txt
+!app/
+!app/**
+!frontend/
+!frontend/**
+!scripts/
+!scripts/**
+**/__pycache__/
+**/*.pyc

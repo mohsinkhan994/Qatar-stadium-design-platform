@@ -1,0 +1,32 @@
+.venv/
+.env
+.env.server
+data/
+models/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+.DS_Store
+
+.venv-flux/
+
+# Local credentials and environment overrides (keep safe templates).
+.env.*
+!.env.example
+!.env.server.example
+.ssh/
+.aws/
+.secrets/
+credentials*.json
+*.pem
+*.key
+
+# Editor settings, logs and local exports.
+.idea/
+.vscode/
+*.log
+backups/
+tmp/
+output/
+htmlcov/
+.coverage
