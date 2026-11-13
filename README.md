@@ -1,7 +1,12 @@
-# Stadium Design Backend
+# Qatar Stadium Design Platform
 
 Working prototype for the QMA “Design Your Own Stadium” questionnaire.
 Python 3.11+ / FastAPI / SQLite, with a separately containerised static frontend.
+
+Application code is separated into `backend/` and `frontend/`. See the
+[architecture guide](docs/architecture.md) for the folder structure and where to
+add new features, and the application guides in
+[backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md).
 
 Two standalone Compose files cover the supported environments:
 
@@ -33,15 +38,15 @@ To start the mock backend directly instead of using the mode selector:
 ```sh
 cp -n .env.example .env
 # Edit .env if you want cloud generation. The default is a free test schematic.
-GENERATION_PROVIDER=mock .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+GENERATION_PROVIDER=mock .venv/bin/python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
 ```
 
 On a fresh machine, install Python 3.11 or newer and run these first:
 
 ```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.lock.txt
-.venv/bin/python -m pip install --no-deps -e .
+.venv/bin/python -m pip install -r backend/requirements.lock.txt
+.venv/bin/python -m pip install --no-deps -e ./backend
 ```
 
 Use **one** uvicorn worker. Do not run another instance with the same `DATA_DIR`.

@@ -4,9 +4,9 @@ import logging
 import secrets
 import shutil
 
-from .design import build_design
-from .providers import ProviderError
-from .storage import now, prepare_image, save_archive
+from app.domain.design import build_design
+from app.providers import ProviderError
+from app.repositories.storage import now, prepare_image, save_archive
 
 log = logging.getLogger(__name__)
 

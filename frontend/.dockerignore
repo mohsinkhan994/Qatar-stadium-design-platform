@@ -1,6 +1,7 @@
 *
 !Dockerfile
-!nginx.conf
+!docker/
+!docker/nginx.conf
 !index.html
-!styles.css
-!app.js
+!src/
+!src/**

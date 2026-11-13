@@ -6,9 +6,9 @@ from types import SimpleNamespace
 import pytest
 from PIL import Image
 
-from app.config import Settings
-from app.design import build_design
-from app.flux_provider import Flux3Provider
+from app.core.config import Settings
+from app.domain.design import build_design
+from app.providers.flux import Flux3Provider
 from app.providers import ProviderError, provider_for
 
 
@@ -38,7 +38,7 @@ def test_flux_caption_preserves_requirements(design):
 
 def test_native_bridge_uses_full_caption_and_offline_mode(monkeypatch, local_settings, design):
     from pathlib import Path
-    monkeypatch.setattr("app.flux_provider.mlx_ready", lambda _: True)
+    monkeypatch.setattr("app.providers.flux.mlx_ready", lambda _: True)
     def run(command, **kwargs):
         request = json.loads(kwargs["input"])
         assert request["prompt"] == design["flux_prompt"]
@@ -48,7 +48,7 @@ def test_native_bridge_uses_full_caption_and_offline_mode(monkeypatch, local_set
         assert command[0] == str(local_settings.flux_mlx_python)
         Image.new("RGB", (256, 256), "green").save(Path(request["output"]))
         return SimpleNamespace(returncode=0)
-    monkeypatch.setattr("app.flux_provider.subprocess.run", run)
+    monkeypatch.setattr("app.providers.flux.subprocess.run", run)
     result = provider_for(local_settings).generate(design)
     assert Image.open(io.BytesIO(result.image)).size == (256, 256)
     assert result.metadata["device"] == "mlx-metal"
@@ -60,17 +60,17 @@ def test_native_bridge_uses_full_caption_and_offline_mode(monkeypatch, local_set
     (OSError("missing runtime"), "local_model_dependencies"),
 ])
 def test_native_errors_are_explicit(monkeypatch, local_settings, design, failure, code):
-    monkeypatch.setattr("app.flux_provider.mlx_ready", lambda _: True)
+    monkeypatch.setattr("app.providers.flux.mlx_ready", lambda _: True)
     def fail(*args, **kwargs):
         raise failure
-    monkeypatch.setattr("app.flux_provider.subprocess.run", fail)
+    monkeypatch.setattr("app.providers.flux.subprocess.run", fail)
     with pytest.raises(ProviderError) as error:
         Flux3Provider(local_settings).generate(design)
     assert error.value.code == code
 
 
 def test_missing_model_does_not_fall_back(monkeypatch, local_settings, design):
-    monkeypatch.setattr("app.flux_provider.mlx_ready", lambda _: False)
+    monkeypatch.setattr("app.providers.flux.mlx_ready", lambda _: False)
     with pytest.raises(ProviderError) as error:
         Flux3Provider(local_settings).generate(design)
     assert error.value.code == "flux_setup_required"
