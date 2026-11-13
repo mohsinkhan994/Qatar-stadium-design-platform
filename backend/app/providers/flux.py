@@ -8,8 +8,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from .config import ROOT
-from .providers import Generation, ProviderError
+from app.core.config import ROOT
+from .base import Generation, ProviderError
 
 log = logging.getLogger(__name__)
 

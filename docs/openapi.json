@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Stadium Design API",
-    "description": "Local development API. Mock output is a labelled fixture, not an offline AI demonstration.",
+    "description": "Mock output is a labelled fixture. Local image generation uses CPU, CUDA or Apple MPS, depending on configuration.",
     "version": "0.1.0"
   },
   "paths": {
@@ -292,6 +292,60 @@
         }
       }
     },
+    "/api/v1/sessions/{session_id}/finish": {
+      "post": {
+        "summary": "Finish",
+        "operationId": "finish_api_v1_sessions__session_id__finish_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sessions/{session_id}/generations": {
       "post": {
         "summary": "Generate",
@@ -436,60 +490,6 @@
               ],
               "type": "string",
               "title": "Asset"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/sessions/{session_id}/finish": {
-      "post": {
-        "summary": "Finish",
-        "operationId": "finish_api_v1_sessions__session_id__finish_post",
-        "parameters": [
-          {
-            "name": "session_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Session Id"
             }
           },
           {

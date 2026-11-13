@@ -4,7 +4,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile.cuda
+      dockerfile: backend/Dockerfile.cuda
       args:
         PYTORCH_CUDA_IMAGE: ${PYTORCH_CUDA_IMAGE:-pytorch/pytorch:2.14.1-cuda12.6-cudnn9-runtime}
     init: true

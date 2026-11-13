@@ -10,11 +10,14 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from app.config import Settings
-from app.design import PROMPT_VERSION, build_design, validate_answers
+from app.core.config import Settings
+from app.domain.design import PROMPT_VERSION, build_design, validate_answers
 from app.main import create_app
-from app.providers import GeminiProvider, MockProvider, OpenAIProvider, ProviderError
-from app.storage import Database, recover
+from app.providers.gemini import GeminiProvider
+from app.providers.mock import MockProvider
+from app.providers.openai import OpenAIProvider
+from app.providers import ProviderError
+from app.repositories.storage import Database, recover
 
 
 ANSWERS = {

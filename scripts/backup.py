@@ -9,8 +9,8 @@ import sqlite3
 import sys
 import tempfile
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from app.storage import verify_archive
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+from app.repositories.storage import verify_archive
 
 
 def snapshot(source: Path, destination: Path):

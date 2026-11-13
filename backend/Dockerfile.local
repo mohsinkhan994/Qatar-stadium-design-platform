@@ -1,24 +1,25 @@
-ARG PYTORCH_CUDA_IMAGE=pytorch/pytorch:2.14.1-cuda12.6-cudnn9-runtime
-FROM ${PYTORCH_CUDA_IMAGE}
+FROM python:3.12-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app/backend \
     DATA_DIR=/app/data \
     HF_HOME=/app/models/huggingface
 
 WORKDIR /app
 
-COPY requirements.lock.txt requirements-container-local.txt ./
-RUN python -m pip install --no-cache-dir --only-binary=:all: -r requirements.lock.txt \
-    && python -m pip install --no-cache-dir --only-binary=:all: -r requirements-container-local.txt
+COPY backend/requirements.lock.txt backend/requirements-container-local.txt ./
+RUN python -m pip install --only-binary=:all: -r requirements.lock.txt \
+    && python -m pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision \
+    && python -m pip install --only-binary=:all: -r requirements-container-local.txt
 
 RUN groupadd --gid 10001 stadium \
     && useradd --uid 10001 --gid stadium --no-create-home stadium \
     && mkdir -p /app/data /app/models/huggingface \
     && chown -R stadium:stadium /app/data /app/models
 
-COPY app ./app
+COPY backend/app ./backend/app
 COPY frontend ./frontend
 COPY scripts ./scripts
 

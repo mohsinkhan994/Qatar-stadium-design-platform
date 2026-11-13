@@ -2,6 +2,7 @@
 set -eu
 
 cd "$(dirname "$0")/.."
+export PYTHONPATH="$PWD/backend${PYTHONPATH:+:$PYTHONPATH}"
 
 if [ ! -f .env ]; then
     cp .env.example .env
@@ -60,10 +61,10 @@ run_mps() {
         exit 1
     fi
     if [ ! -x .venv/bin/python ]; then
-        printf 'Create .venv and install requirements.lock.txt, then run scripts/setup_flux.sh.\n' >&2
+        printf 'Create .venv and install backend/requirements.lock.txt, then run scripts/setup_flux.sh.\n' >&2
         exit 1
     fi
-    if ! .venv/bin/python -c 'from app.config import Settings; from app.flux_provider import mlx_ready; raise SystemExit(0 if mlx_ready(Settings.from_env()) else 1)'; then
+    if ! .venv/bin/python -c 'from app.core.config import Settings; from app.providers.flux import mlx_ready; raise SystemExit(0 if mlx_ready(Settings.from_env()) else 1)'; then
         printf 'FLUX 3 Klein needs initial setup. Run ./scripts/setup_flux.sh first.\n' >&2
         exit 1
     fi
