@@ -1,0 +1,111 @@
+{
+  "mlx-full": {
+    "backend": "mlx",
+    "profile": "balanced",
+    "cases": 50,
+    "generated": 50,
+    "errors": 0,
+    "mean_latency_seconds": 25.852017023380032,
+    "visual_quality_score": null,
+    "critical_failure_rate": null,
+    "first_attempt_acceptance_rate": null,
+    "regeneration_frequency": null,
+    "note": "Direct-provider benchmark; visual assessment and worker regeneration metrics require a configured real evaluator and pipeline benchmark.",
+    "peak_device_memory_bytes": 7238532034,
+    "resolution": [
+      1024,
+      576
+    ]
+  },
+  "mlx-baseline": {
+    "backend": "mlx",
+    "profile": "balanced",
+    "cases": 2,
+    "generated": 2,
+    "errors": 0,
+    "mean_latency_seconds": 25.136364375000994,
+    "visual_quality_score": null,
+    "critical_failure_rate": null,
+    "first_attempt_acceptance_rate": null,
+    "regeneration_frequency": null,
+    "note": "Direct-provider benchmark; visual assessment and worker regeneration metrics require a configured real evaluator and pipeline benchmark.",
+    "peak_device_memory_bytes": 6109264340,
+    "warm_mean_latency_seconds": 24.24041479200241,
+    "resolution": [
+      1024,
+      576
+    ]
+  },
+  "mlx-preview": {
+    "backend": "mlx",
+    "profile": "fast_preview",
+    "cases": 2,
+    "generated": 2,
+    "errors": 0,
+    "mean_latency_seconds": 19.662741916497907,
+    "visual_quality_score": null,
+    "critical_failure_rate": null,
+    "first_attempt_acceptance_rate": null,
+    "regeneration_frequency": null,
+    "note": "Direct-provider benchmark; visual assessment and worker regeneration metrics require a configured real evaluator and pipeline benchmark.",
+    "peak_device_memory_bytes": 6099767946,
+    "warm_mean_latency_seconds": 18.633160707999195,
+    "resolution": [
+      768,
+      512
+    ]
+  },
+  "mlx-high": {
+    "backend": "mlx",
+    "profile": "high_quality",
+    "cases": 1,
+    "generated": 1,
+    "errors": 0,
+    "mean_latency_seconds": 48.2621595840028,
+    "visual_quality_score": null,
+    "critical_failure_rate": null,
+    "first_attempt_acceptance_rate": null,
+    "regeneration_frequency": null,
+    "note": "Direct-provider benchmark; visual assessment and worker regeneration metrics require a configured real evaluator and pipeline benchmark.",
+    "peak_device_memory_bytes": 6396020644,
+    "warm_mean_latency_seconds": null,
+    "resolution": [
+      1344,
+      768
+    ]
+  },
+  "mlx-pipeline": {
+    "backend": "mlx",
+    "profile": "balanced",
+    "cases": 2,
+    "generated": 2,
+    "errors": 0,
+    "mean_latency_seconds": 28.924251478998485,
+    "visual_quality_score": null,
+    "critical_failure_rate": null,
+    "first_attempt_acceptance_rate": null,
+    "regeneration_frequency": 0.0,
+    "note": "Shared worker benchmark; visual metrics remain null unless a real image evaluator returned assessments.",
+    "peak_device_memory_bytes": 6212492994,
+    "warm_mean_latency_seconds": 28.65612449999753,
+    "resolution": [
+      1024,
+      576
+    ]
+  },
+  "mlx-reference": {
+    "backend": "mlx",
+    "profile": "balanced",
+    "cases": 1,
+    "generated": 1,
+    "errors": 0,
+    "mean_latency_seconds": 73.23741283300478,
+    "visual_quality_score": null,
+    "critical_failure_rate": null,
+    "first_attempt_acceptance_rate": null,
+    "regeneration_frequency": 0.0,
+    "note": "Shared worker benchmark; visual metrics remain null unless a real image evaluator returned assessments.",
+    "peak_device_memory_bytes": 6587037680,
+    "warm_mean_latency_seconds": null
+  }
+}

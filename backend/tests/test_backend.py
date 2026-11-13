@@ -215,7 +215,7 @@ def test_seed_changes_variation_and_preserves_answers():
     assert build_design(ANSWERS, 123) == build_design(ANSWERS, 123)
     assert build_design(ANSWERS, 123)["prompt"] != build_design(ANSWERS, 456)["prompt"]
     for key in ANSWERS:
-        assert f'"{key}"' in build_design(ANSWERS, 123)["prompt"]
+        assert key in {c["id"] for c in build_design(ANSWERS, 123)["constraints"]}
 
 
 def test_free_text_limit_and_control_characters():

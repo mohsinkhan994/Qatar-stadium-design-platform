@@ -44,9 +44,9 @@ def generate(request: Request, session_id: UUID, body: GenerateRequest):
         notes = compatibility(answers)
         if {n["code"] for n in notes} != set(body.accepted_notes):
             raise HTTPException(409, {"message": "Confirm the current compatibility notes before generation", "notes": notes})
-        if db.execute("SELECT 1 FROM jobs WHERE session_id=? AND status IN ('queued','generating','saving')", (str(session_id),)).fetchone():
+        if db.execute("SELECT 1 FROM jobs WHERE session_id=? AND status IN ('queued','generating','validating','retrying','saving')", (str(session_id),)).fetchone():
             raise HTTPException(409, "This session already has an active generation")
-        pending = db.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('queued','generating','saving')").fetchone()[0]
+        pending = db.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('queued','generating','validating','retrying','saving')").fetchone()[0]
         if pending >= settings.max_pending_jobs:
             raise HTTPException(429, "Generation queue is full; try again later")
         if shutil.disk_usage(settings.data_dir).free < settings.min_free_disk_mb * 1024**2:
@@ -91,3 +91,21 @@ def get_asset(request: Request, job_id: UUID, asset: Literal["image", "thumbnail
     except (OSError, ValueError):
         raise HTTPException(503, "Archive file is missing or damaged; restore from backup")
     return FileResponse(path, media_type="image/png" if asset == "image" else "image/jpeg")
+
+@router.post("/api/v1/generations/{job_id}/cancel", dependencies=[Depends(kiosk_auth)])
+def cancel_generation(request: Request, job_id: UUID):
+    """Cancel queued work only; never pretend an executing GPU kernel stopped."""
+    with request.app.state.db.connect(immediate=True) as db:
+        row = db.execute("SELECT * FROM jobs WHERE id=?", (str(job_id),)).fetchone()
+        if not row:
+            raise HTTPException(404, "Generation not found")
+        if row["status"] == "cancelled":
+            return job_view(row)
+        if row["status"] != "queued":
+            raise HTTPException(409, "Only queued generations can be cancelled")
+        db.execute(
+            "UPDATE jobs SET status='cancelled',updated_at=?,error_code='cancelled',"
+            "error_message='Generation cancelled before processing' WHERE id=?",
+            (now(), str(job_id)),
+        )
+        return job_view(db.execute("SELECT * FROM jobs WHERE id=?", (str(job_id),)).fetchone())

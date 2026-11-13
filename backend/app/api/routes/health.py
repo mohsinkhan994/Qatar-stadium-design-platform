@@ -15,7 +15,7 @@ def health(request: Request):
     settings = app.state.settings
     free = shutil.disk_usage(settings.data_dir).free
     with app.state.db.connect() as db:
-        pending = db.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('queued','generating','saving')").fetchone()[0]
+        pending = db.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('queued','generating','validating','retrying','saving')").fetchone()[0]
     return {"status": "ok" if free >= settings.min_free_disk_mb * 1024**2 else "low_storage",
             "version": __version__, "provider": settings.provider, "model": app.state.provider.model,
             "provider_configured": configured(settings),

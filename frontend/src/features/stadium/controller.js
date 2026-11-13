@@ -80,7 +80,7 @@ async function startGeneration() {
       method:'POST', body:JSON.stringify({request_id:requestId, revision:state.revision, accepted_notes:acceptedNotes}),
     });
     state.job = job; localStorage.setItem(`qma-stadium-job-${state.session.id}`,job.id);
-    state.phase = job.status === 'completed' ? 'result' : ['failed','interrupted'].includes(job.status) ? 'error' : 'generating'; saveLocal(); render();
+    state.phase = job.status === 'completed' ? 'result' : ['failed','interrupted','cancelled'].includes(job.status) ? 'error' : 'generating'; saveLocal(); render();
     if (state.phase === 'generating') pollJob(job.id);
   } catch (error) { state.phase='review'; setError(error); }
   finally {
@@ -96,7 +96,7 @@ function pollJob(jobId) {
       const job = await request(`/api/v1/generations/${jobId}`);
       state.job = job;
       if (job.status === 'completed') state.phase = 'result';
-      else if (['failed','interrupted'].includes(job.status)) state.phase = 'error';
+      else if (['failed','interrupted','cancelled'].includes(job.status)) state.phase = 'error';
       else { render(); state.pollTimer=window.setTimeout(tick,1300); return; }
       saveLocal(); render();
       announcer.textContent = state.phase === 'result' ? 'Your stadium design is ready.' : 'Image generation paused.';
@@ -137,11 +137,11 @@ async function resume() {
     const session = await request(`/api/v1/sessions/${saved.id}`);
     state.session=session; state.answers=session.answers; state.revision=session.revision;
     state.questionIndex=Math.min(Number(saved.questionIndex)||0,state.questionnaire.questions.length-1);
-    const active = session.generations.find(job=>['queued','generating','saving'].includes(job.status));
+    const active = session.generations.find(job=>['queued','generating','validating','retrying','saving'].includes(job.status));
     const latest = session.generations[0];
     if (active) { state.job=active; state.phase='generating'; pollJob(active.id); }
     else if (latest?.status === 'completed') { state.job=latest; state.phase='result'; }
-    else if (latest && ['failed','interrupted'].includes(latest.status)) { state.job=latest; state.phase='error'; }
+    else if (latest && ['failed','interrupted','cancelled'].includes(latest.status)) { state.job=latest; state.phase='error'; }
     else if (saved.phase === 'review') { state.phase='review'; }
     else { state.phase='question'; }
   } catch {
