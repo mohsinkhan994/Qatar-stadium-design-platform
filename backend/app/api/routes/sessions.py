@@ -44,7 +44,7 @@ def patch_answers(request: Request, session_id: UUID, body: AnswerPatch):
         row = session_row(db, session_id)
         if row["revision"] != body.revision:
             raise HTTPException(409, "Session changed; fetch the current revision before editing")
-        if db.execute("SELECT 1 FROM jobs WHERE session_id=? AND status IN ('queued','generating','saving')", (str(session_id),)).fetchone():
+        if db.execute("SELECT 1 FROM jobs WHERE session_id=? AND status IN ('queued','generating','validating','retrying','saving')", (str(session_id),)).fetchone():
             raise HTTPException(409, "Wait for the active generation before editing choices")
         answers = json.loads(row["answers"])
         for key, value in body.answers.items():

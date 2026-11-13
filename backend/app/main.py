@@ -41,6 +41,9 @@ def create_app(settings=None, provider=None):
             finally:
                 worker.stopping.set()
                 await task
+                close = getattr(app.state.provider, "close", None)
+                if close:
+                    await asyncio.to_thread(close)
         finally:
             fcntl.flock(lock, fcntl.LOCK_UN)
             lock.close()

@@ -16,6 +16,13 @@ Two standalone Compose files cover the supported environments:
 For the faster native Mac GPU path, use `./scripts/run.sh mps`. MPS runs outside
 Docker; it does not require another Compose file.
 
+## Generation quality and benchmarking
+
+The [generation pipeline guide](docs/generation-quality.md) covers structured
+architectural captions, persistent MLX inference, resolution profiles, optional
+local visual evaluation, curated reference images, bounded retries and benchmark
+commands. Visual scores remain unavailable until a real image evaluator is configured.
+
 ## Run on your Mac
 
 This checkout already has a `.venv` with dependencies installed. From this directory:
@@ -512,3 +519,5 @@ Not yet implemented or accepted:
   at exhibition scale, OS auto-start, retention policy and full deployment hardening.
 - 4K acceptance, provider latency/cost evaluation, content rights/licence review,
   museum training and the additional requirements in the referenced technical tender.
+
+Measured Mac results and limitations: [Benchmark report](docs/benchmark-results.md).

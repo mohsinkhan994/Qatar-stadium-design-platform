@@ -39,8 +39,9 @@ class Database:
                     UNIQUE(session_id, request_id)
                 );
                 CREATE INDEX IF NOT EXISTS jobs_status ON jobs(status, created_at);
+                DROP INDEX IF EXISTS one_active_job_per_session;
                 CREATE UNIQUE INDEX IF NOT EXISTS one_active_job_per_session ON jobs(session_id)
-                    WHERE status IN ('queued','generating','saving');
+                    WHERE status IN ('queued','generating','validating','retrying','saving');
             """)
 
     @contextmanager
@@ -65,24 +66,54 @@ class Database:
             row = db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
         return dict(row) if row else None
 
-    def update_job(self, job_id, status, payload=None, error_code=None, error_message=None):
+    def update_job(
+        self, job_id, status, payload=None, error_code=None, error_message=None
+    ):
         with self.connect(immediate=True) as db:
             if payload is not None:
-                db.execute("UPDATE jobs SET payload=? WHERE id=?", (encode(payload), job_id))
-            db.execute("UPDATE jobs SET status=?,updated_at=?,error_code=?,error_message=? WHERE id=?",
-                       (status, now(), error_code, error_message, job_id))
+                db.execute(
+                    "UPDATE jobs SET payload=? WHERE id=?", (encode(payload), job_id)
+                )
+            db.execute(
+                "UPDATE jobs SET status=?,updated_at=?,error_code=?,error_message=? WHERE id=?",
+                (status, now(), error_code, error_message, job_id),
+            )
 
     def claim(self):
         with self.connect(immediate=True) as db:
-            row = db.execute("SELECT * FROM jobs WHERE status='queued' ORDER BY created_at LIMIT 1").fetchone()
+            row = db.execute(
+                "SELECT * FROM jobs WHERE status='queued' ORDER BY created_at LIMIT 1"
+            ).fetchone()
             if row:
-                db.execute("UPDATE jobs SET status='generating',updated_at=? WHERE id=?", (now(), row["id"]))
+                db.execute(
+                    "UPDATE jobs SET status='generating',updated_at=? WHERE id=?",
+                    (now(), row["id"]),
+                )
                 return dict(row)
 
     def image_exists(self, pixel_hash):
         with self.connect() as db:
-            rows = db.execute("SELECT payload FROM jobs WHERE status='completed'").fetchall()
-        return any(json.loads(row["payload"]).get("image", {}).get("pixel_sha256") == pixel_hash for row in rows)
+            rows = db.execute(
+                "SELECT payload FROM jobs WHERE status='completed'"
+            ).fetchall()
+        return any(
+            json.loads(row["payload"]).get("image", {}).get("pixel_sha256")
+            == pixel_hash
+            for row in rows
+        )
+
+    def similar_image_exists(self, value, distance):
+        if value is None or distance < 0:
+            return False
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT payload FROM jobs WHERE status='completed'"
+            ).fetchall()
+        for row in rows:
+            other = json.loads(row["payload"]).get("image", {}).get("dhash")
+            if other and (int(value, 16) ^ int(other, 16)).bit_count() <= distance:
+                return True
+        return False
 
 
 def sha(data):
@@ -103,11 +134,29 @@ def prepare_image(raw):
     small.thumbnail((480, 320))
     thumb = io.BytesIO()
     small.save(thumb, "JPEG", quality=85)
-    return full.getvalue(), thumb.getvalue(), {
-        "width": image.width, "height": image.height, "mime_type": "image/png",
-        "sha256": sha(full.getvalue()), "thumbnail_sha256": sha(thumb.getvalue()),
-        "pixel_sha256": sha(str(image.size).encode() + image.tobytes()),
-    }
+    small_hash = image.convert("L").resize((9, 8), Image.Resampling.LANCZOS)
+    pixels = list(small_hash.tobytes())
+    bits = [
+        pixels[y * 9 + x] > pixels[y * 9 + x + 1] for y in range(8) for x in range(8)
+    ]
+    dhash = (
+        f"{sum(int(bit) << i for i, bit in enumerate(bits)):016x}"
+        if max(pixels) - min(pixels) > 5
+        else None
+    )
+    return (
+        full.getvalue(),
+        thumb.getvalue(),
+        {
+            "dhash": dhash,
+            "width": image.width,
+            "height": image.height,
+            "mime_type": "image/png",
+            "sha256": sha(full.getvalue()),
+            "thumbnail_sha256": sha(thumb.getvalue()),
+            "pixel_sha256": sha(str(image.size).encode() + image.tobytes()),
+        },
+    )
 
 
 def atomic_write(path, data):
@@ -149,11 +198,19 @@ def verify_archive(root, job_id):
 def recover(db):
     """Recover finished files, but never silently repeat a potentially billed API call."""
     with db.connect() as conn:
-        rows = conn.execute("SELECT id FROM jobs WHERE status IN ('generating','saving')").fetchall()
+        rows = conn.execute(
+            "SELECT id,status FROM jobs WHERE status IN ('generating','validating','retrying','saving','failed')"
+        ).fetchall()
     for row in rows:
         try:
             payload = verify_archive(db.directory, row["id"])
             db.update_job(row["id"], "completed", payload)
         except (OSError, ValueError, KeyError):
-            db.update_job(row["id"], "interrupted", error_code="interrupted",
-                          error_message="Generation was interrupted. Review before submitting a new job; the provider may have charged the previous request.")
+            if row["status"] == "failed":
+                continue
+            db.update_job(
+                row["id"],
+                "interrupted",
+                error_code="interrupted",
+                error_message="Generation was interrupted. Review before submitting a new job; the provider may have charged the previous request.",
+            )

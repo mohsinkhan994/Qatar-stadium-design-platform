@@ -27,7 +27,7 @@ def job_view(row):
         result["result"] = {
             "archive_reference": row["id"], "answers": payload["answers"],
             "design": {k: v for k, v in payload["design"].items()
-                       if k not in {"prompt", "local_prompt"}},
+                       if k not in {"prompt", "local_prompt", "flux_prompt", "sections", "constraints", "reference"}},
             "image": payload["image"], "image_url": f"/api/v1/generations/{row['id']}/image",
             "thumbnail_url": f"/api/v1/generations/{row['id']}/thumbnail",
         }

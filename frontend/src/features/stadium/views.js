@@ -125,7 +125,7 @@ function renderReview() {
 
 function renderGenerating() {
   const status = state.job?.status;
-  let current = status === 'saving' ? 'Saving your design' : status === 'queued' ? 'Joining the design queue' : 'Creating your stadium';
+  let current = status === 'validating' ? 'Checking your design' : status === 'retrying' ? 'Refining your stadium' : status === 'saving' ? 'Saving your design' : status === 'queued' ? 'Joining the design queue' : 'Creating your stadium';
   let detail = state.health?.is_mock ? 'Drawing a clearly labelled development schematic.' : 'The image is taking shape. Your answers are safely saved.';
   return shell(`<section class="loading-view" aria-live="polite"><div class="loader-orbit"></div><p class="eyebrow">Your stadium is taking shape</p><h2>${escapeHtml(current)}</h2><p class="muted">${escapeHtml(detail)}</p><div class="loading-progress"><span></span></div><div class="loading-steps"><span class="active">01 &nbsp; Building the concept</span><span class="${status === 'saving' ? 'active' : ''}">02 &nbsp; Saving your design</span><span>03 &nbsp; Ready to reveal</span></div><p class="muted" style="margin:24px 0 0;font-size:12px">Please keep this screen open.</p></section>`);
 }
